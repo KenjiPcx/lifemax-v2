@@ -1,6 +1,6 @@
 "use client"
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
 import { Target } from 'lucide-react';
 
@@ -11,12 +11,49 @@ export type GoalNode = Node<{
 }, "goal">;
 
 export default function GoalNode({ data }: NodeProps<GoalNode>) {
+    const [isHovered, setIsHovered] = useState(false);
+
+    // Dot view (default)
+    if (!isHovered) {
+        return (
+            <div
+                className="relative flex items-center justify-center w-8 h-8 cursor-pointer"
+                onMouseEnter={() => setIsHovered(true)}
+                title={data.name}
+            >
+                <Handle
+                    type="target"
+                    position={Position.Left}
+                    className="w-1 h-1 bg-transparent border-0 opacity-0"
+                />
+                <Handle
+                    type="source"
+                    position={Position.Right}
+                    className="w-1 h-1 bg-transparent border-0 opacity-0"
+                />
+                {/* Visual dot - smaller than hover area */}
+                <div className="w-4 h-4 bg-green-500 border-2 border-green-400 rounded-full shadow-lg transition-all duration-200 hover:scale-125 hover:shadow-xl">
+                    <div className="w-1.5 h-1.5 bg-white rounded-full opacity-80 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
+                </div>
+            </div>
+        );
+    }
+
+    // Expanded view (on hover)
     return (
-        <div className="bg-green-600 border-2 border-green-400 rounded-lg p-4 min-w-[200px] max-w-[250px] shadow-lg">
+        <div
+            className="bg-green-600 border-2 border-green-400 rounded-lg p-4 min-w-[200px] max-w-[250px] shadow-lg transition-all duration-200 transform scale-100 z-10"
+            onMouseLeave={() => setIsHovered(false)}
+        >
             <Handle
                 type="target"
-                position={Position.Top}
-                className="w-3 h-3 bg-green-400 border-2 border-green-600"
+                position={Position.Left}
+                className="w-1 h-1 bg-transparent border-0 opacity-0"
+            />
+            <Handle
+                type="source"
+                position={Position.Right}
+                className="w-1 h-1 bg-transparent border-0 opacity-0"
             />
 
             <div className="flex items-center gap-2 mb-2">
@@ -47,12 +84,6 @@ export default function GoalNode({ data }: NodeProps<GoalNode>) {
                     </span>
                 </div>
             )}
-
-            <Handle
-                type="source"
-                position={Position.Bottom}
-                className="w-3 h-3 bg-green-400 border-2 border-green-600"
-            />
         </div>
     );
 } 

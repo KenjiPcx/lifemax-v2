@@ -12,10 +12,11 @@ export const createThread = mutation({
     returns: v.object({ threadId: v.string() }),
     handler: async (ctx): Promise<{ threadId: string }> => {
         const userId = await getAuthUserId(ctx);
+        if (!userId) throw new Error("Not authenticated");
 
         // Create thread with user association
         const { threadId } = await lifeCopilotAgent.createThread(ctx, {
-            userId: userId || undefined,
+            userId: userId,
         });
 
         return { threadId };
@@ -68,6 +69,7 @@ export const deleteThread = action({
 });
 
 export const sendMessageHttpStream = httpAction(async (ctx, request) => {
+    console.log("Sending message", request);    
     const {
         message,
         id: threadId,
@@ -167,4 +169,4 @@ export const getThreads = query({
         const threads = await ctx.runQuery(components.agent.threads.listThreadsByUserId, { userId });
         return threads;
     },
-});
+}); 

@@ -41,6 +41,9 @@ Always be encouraging and help users see how different opportunities connect to 
         // Decision analysis
         evaluateOption: agentTools.evaluateOption,
         clearTempEntities: agentTools.clearTempEntities,
+
+        // Coordinate regeneration
+        regenerateCoordinates: agentTools.regenerateCoordinates,
     },
 
     // Embedding model for RAG (if needed)

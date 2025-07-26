@@ -10,7 +10,7 @@ export const embeddingModel = openai.embedding('text-embedding-3-small', {
 })
 export const summaryModel = openai('gpt-4o-mini')
 
-export const chatModel = anthropic('claude-4-sonnet-20250514')
+export const chatModel = openai('gpt-4.1')
 export const anthropicProviderOptions = {
     anthropic: {
         thinking: { type: 'enabled', budgetTokens: 15000 },

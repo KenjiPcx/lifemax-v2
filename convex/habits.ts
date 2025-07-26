@@ -14,7 +14,7 @@ export const create = mutation({
     handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
         if (!identity) throw new Error("Not authenticated");
-        
+
         // Verify goals exist and belong to user
         for (const goalId of args.goalIds) {
             const goal = await ctx.db.get(goalId);
@@ -50,7 +50,7 @@ export const list = query({
     handler: async (ctx) => {
         const identity = await ctx.auth.getUserIdentity();
         if (!identity) throw new Error("Not authenticated");
-        
+
         const habits = await ctx.db
             .query("habits")
             .withIndex("by_user", (q) => q.eq("userId", identity.subject as any))
@@ -68,7 +68,7 @@ export const listByGoal = query({
     handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
         if (!identity) throw new Error("Not authenticated");
-        
+
         const habits = await ctx.db
             .query("habits")
             .withIndex("by_user", (q) => q.eq("userId", identity.subject as any))
@@ -94,20 +94,11 @@ export const get = query({
     handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
         if (!identity) throw new Error("Not authenticated");
-        
+
         const habit = await ctx.db.get(args.habitId);
         if (!habit || habit.userId !== identity.subject) return null;
 
-        return {
-            _id: habit._id,
-            _creationTime: habit._creationTime,
-            name: habit.name,
-            description: habit.description,
-            goalIds: habit.goalIds,
-            frequency: habit.frequency,
-            coordinates: habit.coordinates,
-            status: habit.status,
-        };
+        return habit;
     },
 });
 
@@ -126,7 +117,7 @@ export const update = mutation({
     handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
         if (!identity) throw new Error("Not authenticated");
-        
+
         const { habitId, ...updates } = args;
 
         const habit = await ctx.db.get(habitId);
@@ -162,10 +153,10 @@ export const remove = mutation({
     handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
         if (!identity) throw new Error("Not authenticated");
-        
+
         const habit = await ctx.db.get(args.habitId);
         if (!habit || habit.userId !== identity.subject) throw new Error("Habit not found");
-        
+
         await ctx.db.delete(args.habitId);
 
         // TODO: Recalculate coordinates for remaining habits
@@ -181,7 +172,7 @@ export const linkToGoal = mutation({
     handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
         if (!identity) throw new Error("Not authenticated");
-        
+
         const habit = await ctx.db.get(args.habitId);
         if (!habit || habit.userId !== identity.subject) throw new Error("Habit not found");
 
@@ -207,7 +198,7 @@ export const unlinkFromGoal = mutation({
     handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
         if (!identity) throw new Error("Not authenticated");
-        
+
         const habit = await ctx.db.get(args.habitId);
         if (!habit || habit.userId !== identity.subject) throw new Error("Habit not found");
 
@@ -242,15 +233,9 @@ export const generateEmbeddingForHabit = internalAction({
             text: `${habit.name}: ${habit.description} [Frequency: ${habit.frequency}]${goalContext}`,
         });
 
-        // Get the habit to get userId  
-        const fullHabit = await ctx.runQuery(internal.habits.getWithUserId, {
-            habitId: args.habitId,
-        });
-        if (!fullHabit) return;
-
         // Get all habits for the same user for coordinate calculation
         const allHabits = await ctx.runQuery(internal.habits.listByUser, {
-            userId: fullHabit.userId,
+            userId: habit.userId,
         });
 
         // Calculate new coordinates for all habits

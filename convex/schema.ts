@@ -1,6 +1,7 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { authTables } from "@convex-dev/auth/server";
+import { use } from "react";
 
 // The schema is normally optional, but Convex Auth
 // requires indexes defined on `authTables`.
@@ -32,7 +33,7 @@ export default defineSchema({
     parentProjectId: v.optional(v.id("projects")), // for subprojects
     embedding: v.array(v.float64()),
     coordinates: v.object({ x: v.number(), y: v.number() }),
-    status: v.optional(v.string()), // "planning", "in-progress", "completed"
+    status: v.union(v.literal("planning"), v.literal("in-progress"), v.literal("completed")), // "planning", "in-progress", "completed"
     completed: v.boolean(), // completion flag
   })
     .vectorIndex("by_embedding", {

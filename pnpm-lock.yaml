@@ -50,6 +50,9 @@ importers:
       convex:
         specifier: ^1.23.0
         version: 1.25.4(react@19.1.0)
+      convex-helpers:
+        specifier: ^0.1.100
+        version: 0.1.100(convex@1.25.4(react@19.1.0))(react@19.1.0)(typescript@5.8.3)(zod@3.25.76)
       d3-force:
         specifier: ^3.0.0
         version: 3.0.0

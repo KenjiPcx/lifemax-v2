@@ -12,6 +12,7 @@ import { Button } from './ui/button';
 import { Sparkles, Plus } from 'lucide-react';
 import { Attachment } from 'ai';
 import { MultimodalInput } from './chat/multimodal-input';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/select';
 
 export function ChatOverlay() {
     const { isAuthenticated, isLoading } = useConvexAuth();
@@ -111,13 +112,7 @@ export function ChatOverlay() {
     const handleNodeSelect = useCallback((nodeId: string, nodeData: any) => {
         setSelectedNode(nodeId);
         setHighlightedNodes(new Set([nodeId]));
-
-        // Add a message about the selected node
-        append({
-            role: 'user',
-            content: `Tell me more about: ${nodeData.name}`,
-        });
-    }, [append]);
+    }, []);
 
     useEffect(() => {
         let hideTimer: NodeJS.Timeout;
@@ -142,7 +137,7 @@ export function ChatOverlay() {
 
     if (isLoading || !currentThreadId) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-gray-900 text-white">
+            <div className="flex items-center justify-center min-h-screen text-white">
                 <div className="text-gray-400">Loading...</div>
             </div>
         );
@@ -151,7 +146,7 @@ export function ChatOverlay() {
     // Authentication check
     if (!isAuthenticated) {
         return (
-            <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+            <div className="min-h-screen text-white flex items-center justify-center">
                 <div className="text-center space-y-6">
                     <div className="flex items-center justify-center gap-3 mb-8">
                         <Sparkles className="h-12 w-12 text-green-400" />
@@ -175,16 +170,42 @@ export function ChatOverlay() {
         <div className="h-dvh w-full relative">
             {/* New Thread Button */}
             <div className="absolute top-4 left-4 z-20 flex items-center gap-2">
+                <Select
+                    value={currentThreadId}
+                    onValueChange={(value) => setCurrentThreadId(value)}
+                >
+                    <SelectTrigger className="w-[200px] bg-background/80 dark:bg-zinc-900/80 backdrop-blur-lg border-white/10">
+                        <SelectValue placeholder="Select a thread..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {allThreads?.page.map((thread) => (
+                            <SelectItem key={thread._id} value={thread._id}>
+                                <div className="flex flex-col">
+                                    <span>{thread.title || `Thread ${thread._id.slice(-4)}`}</span>
+                                    <span className="text-xs text-muted-foreground">
+                                        {new Date(thread._creationTime).toLocaleDateString('en-US', {
+                                            month: 'short',
+                                            day: 'numeric',
+                                            hour: '2-digit',
+                                            minute: '2-digit'
+                                        })}
+                                    </span>
+                                </div>
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
                 <Button
+                    size="icon"
                     variant="outline"
                     onClick={handleCreateNewThread}
                     disabled={isCreatingThread}
                     className="bg-background/80 dark:bg-zinc-900/80 backdrop-blur-lg border-white/10"
                 >
-                    <Plus className="h-4 w-4 mr-2" />
-                    {isCreatingThread ? 'Creating...' : 'New Thread'}
+                    <Plus className="h-4 w-4" />
                 </Button>
             </div>
+
 
             {/* Floating Assistant Message */}
             <AnimatePresence>

@@ -1,6 +1,7 @@
 import { v } from "convex/values";
-import { query, mutation, internalQuery } from "./_generated/server";
+import { query, mutation, internalQuery, internalAction } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { api, internal } from "./_generated/api";
 
 // Get all goals for the current user
 export const listByUser = query({
@@ -91,16 +92,11 @@ export const update = mutation({
         coordinates: v.optional(v.object({ x: v.number(), y: v.number() })),
     },
     handler: async (ctx, args) => {
-        const userId = await getAuthUserId(ctx);
-        if (!userId) {
-            throw new Error("User not authenticated");
-        }
-
         const { goalId, ...updates } = args;
         const goal = await ctx.db.get(goalId);
 
-        if (!goal || goal.userId !== userId) {
-            throw new Error("Goal not found or unauthorized");
+        if (!goal) {
+            throw new Error("Goal not found");
         }
 
         await ctx.db.patch(goalId, updates);
@@ -124,5 +120,52 @@ export const remove = mutation({
         }
 
         await ctx.db.delete(args.goalId);
+    },
+});
+
+// Internal: Generate embedding for a goal
+export const generateEmbeddingForGoal = internalAction({
+    args: {
+        goalId: v.id("goals"),
+    },
+    handler: async (ctx, args) => {
+        const goal = await ctx.runQuery(api.goals.get, {
+            goalId: args.goalId,
+        });
+        if (!goal) return;
+
+        // Generate embedding from description + goal context + frequency
+        const embedding = await ctx.runAction(internal.embeddings.generateEmbedding, {
+            text: `${goal.name}: ${goal.description}`,
+        });
+
+        // Get all habits for the same user for coordinate calculation
+        const allGoals = await ctx.runQuery(internal.goals.listByUserInternal, {
+            userId: goal.userId,
+        });
+
+        // Calculate new coordinates for all habits
+        const embeddings = allGoals.map((g: any) => ({
+            id: g._id,
+            embedding: g._id === args.goalId ? embedding : g.embedding,
+        }));
+
+        const { coordinates } = await ctx.runAction(internal.embeddings.calculateCoordinates, {
+            embeddings,
+        });
+
+        // Update all habit coordinates
+        for (const coord of coordinates) {
+            await ctx.runMutation(api.goals.update, {
+                goalId: coord.id as any,
+                coordinates: { x: coord.x, y: coord.y },
+            });
+        }
+
+        // Update the habit's embedding
+        await ctx.runMutation(api.goals.update, {
+            goalId: args.goalId,
+            embedding,
+        });
     },
 });

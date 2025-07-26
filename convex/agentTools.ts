@@ -16,6 +16,11 @@ export const createGoal = createTool({
             description: args.description,
         });
 
+        // Add embedding to the goal
+        await ctx.runAction(internal.goals.generateEmbeddingForGoal, {
+            goalId: goalId as Id<"goals">,
+        });
+
         return {
             goalId,
             message: `Created goal "${args.name}". I'll calculate its position in your life map based on its description.`,
@@ -92,6 +97,7 @@ export const createProject = createTool({
     args: z.object({
         name: z.string().describe("The name of the project"),
         description: z.string().describe("A detailed description of the project"),
+        status: z.string().optional().describe("New status: planning, in-progress, or completed"),
         goalIds: z.array(z.string()).describe("Array of goal IDs this project supports"),
     }),
     handler: async (ctx, args): Promise<{ projectId: string; message: string }> => {
@@ -99,6 +105,12 @@ export const createProject = createTool({
             name: args.name,
             description: args.description,
             goalIds: args.goalIds as Id<"goals">[],
+            status: args.status as "planning" | "in-progress" | "completed" || "planning",
+        });
+
+        // Add embedding to the project
+        await ctx.runAction(internal.projects.generateEmbeddingForProject, {
+            projectId: projectId as Id<"projects">,
         });
 
         return {
@@ -142,7 +154,7 @@ export const updateProject = createTool({
         name: z.string().optional().describe("New name for the project"),
         description: z.string().optional().describe("New description for the project"),
         goalIds: z.array(z.string()).optional().describe("New array of goal IDs"),
-        status: z.string().optional().describe("New status: planning, in-progress, or completed"),
+        status: z.enum(["planning", "in-progress", "completed"]).describe("New status: planning, in-progress, or completed"),
     }),
     handler: async (ctx, args): Promise<{ message: string }> => {
         await ctx.runMutation(api.projects.update, {
@@ -150,7 +162,7 @@ export const updateProject = createTool({
             name: args.name,
             description: args.description,
             goalIds: args.goalIds as Id<"goals">[] | undefined,
-            status: args.status,
+            status: args.status as "planning" | "in-progress" | "completed" || "planning",
         });
 
         return {
@@ -259,6 +271,66 @@ export const clearTempEntities = createTool({
 
         return {
             message: "Cleared all temporary analysis entities from the map.",
+        };
+    },
+});
+
+export const regenerateCoordinates = createTool({
+    description: "Regenerate the coordinates for all entities in the life map",
+    args: z.object({}),
+    handler: async (ctx): Promise<{ message: string }> => {
+        const allGoals = await ctx.runQuery(internal.goals.listByUserInternal, {
+            userId: ctx.userId as Id<"users">,
+        });
+
+        const allProjects = await ctx.runQuery(internal.projects.listByUserInternal, {
+            userId: ctx.userId as Id<"users">,
+        });
+
+        const allHabits = await ctx.runQuery(internal.habits.listByUser, {
+            userId: ctx.userId as Id<"users">,
+        });
+
+        const allEntities = [...allGoals.map(goal => ({
+            id: goal._id as string,
+            embedding: goal.embedding,
+        })), ...allProjects.map(project => ({
+            id: project._id as string,
+            embedding: project.embedding,
+        })), ...allHabits.map(habit => ({
+            id: habit._id as string,
+            embedding: habit.embedding,
+        }))];
+
+        const { coordinates } = await ctx.runAction(internal.embeddings.calculateCoordinates, {
+            embeddings: allEntities,
+        });
+
+        const goalIds = allGoals.map(goal => goal._id as string);
+        const projectIds = allProjects.map(project => project._id as string);
+        const habitIds = allHabits.map(habit => habit._id as string);
+
+        for (const coord of coordinates) {
+            if (goalIds.includes(coord.id)) {
+                await ctx.runMutation(api.goals.update, {
+                    goalId: coord.id as Id<"goals">,
+                    coordinates: { x: coord.x, y: coord.y },
+                });
+            } else if (projectIds.includes(coord.id)) {
+                await ctx.runMutation(api.projects.update, {
+                    projectId: coord.id as Id<"projects">,
+                    coordinates: { x: coord.x, y: coord.y },
+                });
+            } else if (habitIds.includes(coord.id)) {
+                await ctx.runMutation(api.habits.update, {
+                    habitId: coord.id as Id<"habits">,
+                    coordinates: { x: coord.x, y: coord.y },
+                });
+            }
+        }
+
+        return {
+            message: "Regenerated coordinates for all entities in the life map.",
         };
     },
 });
