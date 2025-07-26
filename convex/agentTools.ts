@@ -1,6 +1,6 @@
 import { createTool } from "@convex-dev/agent";
 import { z } from "zod";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
 
 // Goal Tools
@@ -32,7 +32,12 @@ export const listGoals = createTool({
         description: string;
         status: string | undefined;
     }>> => {
-        const goals: Doc<"goals">[] = await ctx.runQuery(api.goals.list, {});
+        if (!ctx.userId) {
+            throw new Error("User not authenticated");
+        }
+        const goals: Doc<"goals">[] = await ctx.runQuery(internal.goals.listByUserInternal, {
+            userId: ctx.userId as Id<"users">,
+        });
 
         return goals.map(goal => ({
             id: goal._id,
@@ -113,7 +118,12 @@ export const listProjects = createTool({
         goalIds: string[];
         status: string | undefined;
     }>> => {
-        const projects: Doc<"projects">[] = await ctx.runQuery(api.projects.list, {});
+        if (!ctx.userId) {
+            throw new Error("User not authenticated");
+        }
+        const projects: Doc<"projects">[] = await ctx.runQuery(internal.projects.listByUserInternal, {
+            userId: ctx.userId as Id<"users">,
+        });
 
         return projects.map(project => ({
             id: project._id,
@@ -165,24 +175,6 @@ export const deleteProject = createTool({
     },
 });
 
-export const linkProjectToGoal = createTool({
-    description: "Link a project to an additional goal",
-    args: z.object({
-        projectId: z.string().describe("The ID of the project"),
-        goalId: z.string().describe("The ID of the goal to link to"),
-    }),
-    handler: async (ctx, args): Promise<{ message: string }> => {
-        await ctx.runMutation(api.projects.linkToGoal, {
-            projectId: args.projectId as Id<"projects">,
-            goalId: args.goalId as Id<"goals">,
-        });
-
-        return {
-            message: `Linked project to goal successfully.`,
-        };
-    },
-});
-
 // Temporary Entity Tools
 export const evaluateOption = createTool({
     description: "Create a temporary entity to evaluate a potential decision, goal, or project",
@@ -206,8 +198,11 @@ export const evaluateOption = createTool({
             description: args.description,
         });
 
-        // Wait a bit for analysis to complete
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Analyze the entity
+        await ctx.runAction(internal.tempEntities.analyzeEntity, {
+            tempEntityId: tempEntityId as Id<"tempEntities">,
+            userId: ctx.userId as Id<"users">,
+        });
 
         // Get the analyzed entity
         const entity = await ctx.runQuery(api.tempEntities.get, {

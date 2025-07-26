@@ -10,12 +10,16 @@
 
 import type * as agentTools from "../agentTools.js";
 import type * as agents from "../agents.js";
+import type * as auth from "../auth.js";
 import type * as chat from "../chat.js";
 import type * as embeddings from "../embeddings.js";
 import type * as goals from "../goals.js";
+import type * as habits from "../habits.js";
 import type * as http from "../http.js";
 import type * as projects from "../projects.js";
+import type * as tasks from "../tasks.js";
 import type * as tempEntities from "../tempEntities.js";
+import type * as visualization from "../visualization.js";
 
 import type {
   ApiFromModules,
@@ -34,12 +38,16 @@ import type {
 declare const fullApi: ApiFromModules<{
   agentTools: typeof agentTools;
   agents: typeof agents;
+  auth: typeof auth;
   chat: typeof chat;
   embeddings: typeof embeddings;
   goals: typeof goals;
+  habits: typeof habits;
   http: typeof http;
   projects: typeof projects;
+  tasks: typeof tasks;
   tempEntities: typeof tempEntities;
+  visualization: typeof visualization;
 }>;
 declare const fullApiWithMounts: typeof fullApi;
 

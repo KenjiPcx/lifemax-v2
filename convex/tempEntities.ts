@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { mutation, query, action, internalMutation, internalQuery, internalAction } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import { Doc } from "./_generated/dataModel";
+import { getAuthUserId } from "@convex-dev/auth/server";
 
 // Create a temporary entity for decision analysis
 export const create = mutation({
@@ -12,6 +13,11 @@ export const create = mutation({
         description: v.string(),
     },
     handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) {
+            throw new Error("User not authenticated");
+        }
+
         // Create temp entity with placeholder embedding and coordinates
         const tempEntityId = await ctx.db.insert("tempEntities", {
             threadId: args.threadId,
@@ -20,13 +26,9 @@ export const create = mutation({
             description: args.description,
             embedding: new Array(1536).fill(0), // Placeholder
             coordinates: { x: 0, y: 0 }, // Placeholder
+            userId: userId,
         });
-
-        // Schedule embedding generation and similarity analysis
-        await ctx.scheduler.runAfter(0, internal.tempEntities.analyzeEntity, {
-            tempEntityId,
-        });
-
+        
         return tempEntityId;
     },
 });
@@ -109,6 +111,7 @@ export const update = mutation({
         if (needsNewAnalysis) {
             await ctx.scheduler.runAfter(0, internal.tempEntities.analyzeEntity, {
                 tempEntityId,
+                userId: entity.userId,
             });
         }
     },
@@ -145,6 +148,7 @@ export const clearThread = mutation({
 export const analyzeEntity = internalAction({
     args: {
         tempEntityId: v.id("tempEntities"),
+        userId: v.id("users"),
     },
     handler: async (ctx, args) => {
         const entity = await ctx.runQuery(api.tempEntities.get, {
@@ -162,8 +166,12 @@ export const analyzeEntity = internalAction({
         // In production, you'd want to link threads to users properly
 
         // Collect all existing embeddings for coordinate calculation
-        const allGoals: Doc<"goals">[] = await ctx.runQuery(api.goals.list, {});
-        const allProjects: Doc<"projects">[] = await ctx.runQuery(api.projects.list, {});
+        const allGoals: Doc<"goals">[] = await ctx.runQuery(internal.goals.listByUserInternal, {
+            userId: args.userId,
+        });
+        const allProjects: Doc<"projects">[] = await ctx.runQuery(internal.projects.listByUserInternal, {
+            userId: args.userId,
+        });
 
         const existingEmbeddings = [
             ...allGoals.map(g => ({ id: g._id, embedding: g.embedding })),

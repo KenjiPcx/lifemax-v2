@@ -2,11 +2,12 @@ import { Agent } from "@convex-dev/agent";
 import { openai } from "@ai-sdk/openai";
 import { components } from "./_generated/api";
 import * as agentTools from "./agentTools";
+import { chatModel, embeddingModel } from "../lib/ai/models";
 
 // Create the life copilot agent
 export const lifeCopilotAgent = new Agent(components.agent, {
     // The chat completions model to use
-    chat: openai.chat("gpt-4o-mini"),
+    chat: chatModel,
 
     // System instructions for the agent
     instructions: `You are a Life Copilot AI assistant that helps users plan and navigate their life goals and projects.
@@ -36,7 +37,6 @@ Always be encouraging and help users see how different opportunities connect to 
         listProjects: agentTools.listProjects,
         updateProject: agentTools.updateProject,
         deleteProject: agentTools.deleteProject,
-        linkProjectToGoal: agentTools.linkProjectToGoal,
 
         // Decision analysis
         evaluateOption: agentTools.evaluateOption,
@@ -44,7 +44,7 @@ Always be encouraging and help users see how different opportunities connect to 
     },
 
     // Embedding model for RAG (if needed)
-    textEmbedding: openai.embedding("text-embedding-3-small"),
+    textEmbedding: embeddingModel,
 
     // Max steps for tool execution
     maxSteps: 10,
